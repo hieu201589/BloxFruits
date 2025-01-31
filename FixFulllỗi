@@ -1,67 +1,19 @@
--- Tạo GUI đơn giản để hiển thị FPS
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-
-local fpsLabel = Instance.new("TextLabel")
-fpsLabel.Size = UDim2.new(0, 200, 0, 50)
-fpsLabel.Position = UDim2.new(0, 10, 0, 10)
-fpsLabel.BackgroundTransparency = 0.5
-fpsLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-fpsLabel.TextSize = 10  -- Kích thước văn bản là 10
-fpsLabel.Text = "FPS: 0"
-fpsLabel.Parent = screenGui
-
--- Biến lưu thời gian
-local lastUpdateTime = tick()
-local frameCount = 0
-local fps = 0
-
--- Hàm tính FPS và thay đổi màu sắc của FPS
-local function updateFPS()
-    local currentTime = tick()
-    frameCount = frameCount + 1
-    -- Mỗi giây, tính lại FPS và hiển thị trên GUI
-    if currentTime - lastUpdateTime >= 1 then
-        fps = frameCount
-        fpsLabel.Text = "FPS: " .. fps
-
-        -- Chọn màu sắc dựa trên FPS
-        if fps < 10 then
-            fpsLabel.TextColor3 = Color3.fromRGB(255, 0, 0)   -- Đỏ (FPS rất thấp)
-        elseif fps < 20 then
-            fpsLabel.TextColor3 = Color3.fromRGB(255, 69, 0)  -- Cam
-        elseif fps < 30 then
-            fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 0) -- Vàng
-        elseif fps < 40 then
-            fpsLabel.TextColor3 = Color3.fromRGB(154, 205, 50) -- Lục nhạt
-        elseif fps < 50 then
-            fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)   -- Xanh lá cây
-        elseif fps < 60 then
-            fpsLabel.TextColor3 = Color3.fromRGB(0, 0, 255)   -- Xanh dương
-        else
-            fpsLabel.TextColor3 = Color3.fromRGB(138, 43, 226) -- Tím (FPS cao nhất)
-        end
-
-        lastUpdateTime = currentTime
-        frameCount = 0
-    end
-end
-
--- Giảm chất lượng đồ họa
+-- Tối ưu hóa chất lượng đồ họa
 game:GetService("Players").LocalPlayer.PlayerSettings.SavedQualityLevel = Enum.QualityLevel.Level1
 
 -- Tắt các hiệu ứng ánh sáng và bóng không cần thiết
-game:GetService("Lighting").GlobalShadows = false
-game:GetService("Lighting").Bloom.Enabled = false
-game:GetService("Lighting").SunRays.Enabled = false
-game:GetService("Lighting").LensFlare.Enabled = false
-game:GetService("Lighting").ColorCorrection.Enabled = false
-game:GetService("Lighting").ShadowQuality = Enum.ShadowQuality.NoShadows
+local lighting = game:GetService("Lighting")
+lighting.GlobalShadows = false
+lighting.Bloom.Enabled = false
+lighting.SunRays.Enabled = false
+lighting.LensFlare.Enabled = false
+lighting.ColorCorrection.Enabled = false
+lighting.ShadowQuality = Enum.ShadowQuality.NoShadows
 
 -- Tắt V-Sync và FPS limiter
-if game:GetService("UserSettings"):GetService("GameSettings").VSyncEnabled then
-    game:GetService("UserSettings"):GetService("GameSettings").VSyncEnabled = false
+local userSettings = game:GetService("UserSettings"):GetService("GameSettings")
+if userSettings.VSyncEnabled then
+    userSettings.VSyncEnabled = false
 end
 
 -- Tối ưu hóa RemoteEvent/RemoteFunction
@@ -139,5 +91,40 @@ game:GetService("Players").PlayerAdded:Connect(function(player)
                 accessory:Destroy() -- Xóa phụ kiện không cần thiết
             end
         end
+    end)
+end)
+
+-- Hàm giải phóng bộ nhớ
+local function freeMemory()
+    collectgarbage("collect")  -- Yêu cầu hệ thống dọn dẹp bộ nhớ
+end
+
+-- Dọn dẹp các đối tượng không cần thiết (Chỉ xóa các đối tượng không phải là đối tượng quan trọng)
+game:GetService("RunService").Heartbeat:Connect(function()
+    -- Giải phóng bộ nhớ liên tục
+    freeMemory()
+
+    -- Xóa các đối tượng không cần thiết
+    for _, object in pairs(workspace:GetChildren()) do
+        if object:IsA("Model") or object:IsA("Part") then
+            -- Loại bỏ các đối tượng không cần thiết, không cần thiết phải đồng bộ hóa
+            if (object.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 500 then
+                object:Destroy()  -- Xóa các đối tượng xa người chơi
+            end
+        end
+    end
+end)
+
+-- Giải phóng bộ nhớ sau khi xóa các đối tượng không cần thiết
+game:GetService("Players").PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        -- Xóa các phụ kiện không cần thiết
+        for _, accessory in pairs(character:GetChildren()) do
+            if accessory:IsA("Accessory") then
+                accessory:Destroy() -- Xóa phụ kiện không cần thiết
+            end
+        end
+        -- Giải phóng bộ nhớ sau khi xóa phụ kiện
+        freeMemory()
     end)
 end)
