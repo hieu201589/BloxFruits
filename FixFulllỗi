@@ -1,62 +1,105 @@
--- Tối ưu hóa đối tượng và xóa đối tượng không cần thiết
-local debris = game:GetService("Debris")
+-- Tạo GUI đơn giản để hiển thị FPS
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Hàm để tạo đối tượng và tự động xóa sau một thời gian
-local function createPart()
-    local part = Instance.new("Part")
-    part.Size = Vector3.new(4, 1, 4)  -- Đối tượng đơn giản, tiết kiệm tài nguyên
-    part.Position = Vector3.new(math.random(-50, 50), 5, math.random(-50, 50))
-    part.Parent = workspace
-    debris:AddItem(part, 5)  -- Tự động xóa sau 5 giây
-end
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(0, 200, 0, 50)
+fpsLabel.Position = UDim2.new(0, 10, 0, 10)
+fpsLabel.BackgroundTransparency = 0.5
+fpsLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+fpsLabel.TextSize = 10  -- Kích thước văn bản là 10
+fpsLabel.Text = "FPS: 0"
+fpsLabel.Parent = screenGui
 
--- Tạo đối tượng mỗi 3 giây thay vì mỗi frame
-while true do
-    wait(3)  -- Chờ 3 giây trước khi tạo đối tượng mới
-    createPart()  -- Tạo đối tượng mới
-end
+-- Biến lưu thời gian
+local lastUpdateTime = tick()
+local frameCount = 0
+local fps = 0
 
--- Tối ưu hóa sự kiện Touched
-local part = workspace.Part  -- Giả sử bạn có một đối tượng Part trong workspace
+-- Hàm tính FPS và thay đổi màu sắc của FPS
+local function updateFPS()
+    local currentTime = tick()
+    frameCount = frameCount + 1
+    -- Mỗi giây, tính lại FPS và hiển thị trên GUI
+    if currentTime - lastUpdateTime >= 1 then
+        fps = frameCount
+        fpsLabel.Text = "FPS: " .. fps
 
-part.Touched:Connect(function(hit)
-    -- Kiểm tra đối tượng bị va chạm là một Player
-    if hit:IsA("Player") then
-        -- Code xử lý chỉ khi va chạm với Player
-        print(hit.Name .. " đã va chạm với part!")
+        -- Chọn màu sắc dựa trên FPS
+        if fps < 10 then
+            fpsLabel.TextColor3 = Color3.fromRGB(255, 0, 0)   -- Đỏ (FPS rất thấp)
+        elseif fps < 20 then
+            fpsLabel.TextColor3 = Color3.fromRGB(255, 69, 0)  -- Cam
+        elseif fps < 30 then
+            fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 0) -- Vàng
+        elseif fps < 40 then
+            fpsLabel.TextColor3 = Color3.fromRGB(154, 205, 50) -- Lục nhạt
+        elseif fps < 50 then
+            fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)   -- Xanh lá cây
+        elseif fps < 60 then
+            fpsLabel.TextColor3 = Color3.fromRGB(0, 0, 255)   -- Xanh dương
+        else
+            fpsLabel.TextColor3 = Color3.fromRGB(138, 43, 226) -- Tím (FPS cao nhất)
+        end
+
+        lastUpdateTime = currentTime
+        frameCount = 0
     end
-end)
-
--- Tối ưu hóa việc cập nhật GUI (Giả sử có một GUI)
-local player = game.Players.LocalPlayer
-local playerGui = player.PlayerGui
-
--- Chỉ cập nhật GUI mỗi 1 giây thay vì mỗi frame
-while true do
-    wait(1)  -- Cập nhật mỗi giây
-    -- Cập nhật GUI ở đây (ví dụ: thay đổi giá trị hoặc hiển thị thông tin)
 end
 
--- Giảm số lần cập nhật trong RenderStepped (chỉ cập nhật khi cần thiết)
-game:GetService("RunService").RenderStepped:Connect(function()
-    -- Kiểm tra điều kiện nào đó và chỉ thực hiện cập nhật khi cần thiết
-    if math.random() < 0.1 then  -- Giả sử bạn chỉ muốn cập nhật 10% thời gian
-        -- Code cập nhật
-    end
-end)
+-- Gọi hàm updateFPS mỗi khung hình
+game:GetService("RunService").Heartbeat:Connect(updateFPS)
 
--- Hàm tối ưu hóa game bằng cách dọn dẹp các đối tượng không cần thiết
-local function cleanupObjects()
+-- Tối ưu hóa bộ nhớ (Giải phóng các đối tượng không cần thiết)
+local function cleanupUnnecessaryObjects()
+    local partsToCleanup = {}  -- Danh sách các đối tượng cần xóa
+
+    -- Xóa tất cả các "Part" trong Workspace không cần thiết
     for _, obj in pairs(workspace:GetChildren()) do
-        -- Xóa các đối tượng không cần thiết (ví dụ: các phần tử cũ hoặc không còn sử dụng)
-        if obj:IsA("Part") and obj.Name == "OldPart" then
-            obj:Destroy()
+        if obj:IsA("Part") and obj.Name ~= "EssentialPart" then
+            table.insert(partsToCleanup, obj)  -- Thêm vào danh sách xóa
         end
     end
+    
+    -- Xóa tất cả các đối tượng trong danh sách
+    for _, part in ipairs(partsToCleanup) do
+        part:Destroy()
+    end
 end
 
--- Thực hiện dọn dẹp mỗi 10 giây
-while true do
-    wait(10)
-    cleanupObjects()
+-- Tạo tween thay vì tạo đối tượng mới liên tục
+local function createSmoothMovement()
+    local TweenService = game:GetService("TweenService")
+    local part = workspace.Part
+
+    local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, true)
+    local goal = {Position = Vector3.new(10, 5, 0)}
+
+    local tween = TweenService:Create(part, tweenInfo, goal)
+    tween:Play()
 end
+
+-- Hàm giải phóng bộ nhớ
+local function freeMemory()
+    cleanupUnnecessaryObjects()  -- Giải phóng các đối tượng không cần thiết
+    -- Các tác vụ khác như ngừng các sự kiện không cần thiết hoặc dừng các vòng lặp không cần thiết
+    print("Đã giải phóng bộ nhớ!")
+end
+
+-- Tối ưu hóa và dọn dẹp bộ nhớ
+local function optimizeMemoryUsage()
+    freeMemory()  -- Gọi hàm giải phóng bộ nhớ
+    createSmoothMovement()  -- Tạo chuyển động mượt mà mà không tạo thêm đối tượng
+end
+
+-- Gọi hàm giải phóng bộ nhớ mỗi giây
+game:GetService("RunService").Heartbeat:Connect(function()
+    -- Giải phóng bộ nhớ sau mỗi giây
+    if tick() % 1 < 0.1 then  -- Kiểm tra mỗi giây
+        optimizeMemoryUsage()
+    end
+end)
+
+-- Gọi hàm tối ưu hóa ngay từ đầu
+optimizeMemoryUsage()
