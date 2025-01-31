@@ -1,0 +1,62 @@
+-- Tối ưu hóa đối tượng và xóa đối tượng không cần thiết
+local debris = game:GetService("Debris")
+
+-- Hàm để tạo đối tượng và tự động xóa sau một thời gian
+local function createPart()
+    local part = Instance.new("Part")
+    part.Size = Vector3.new(4, 1, 4)  -- Đối tượng đơn giản, tiết kiệm tài nguyên
+    part.Position = Vector3.new(math.random(-50, 50), 5, math.random(-50, 50))
+    part.Parent = workspace
+    debris:AddItem(part, 5)  -- Tự động xóa sau 5 giây
+end
+
+-- Tạo đối tượng mỗi 3 giây thay vì mỗi frame
+while true do
+    wait(3)  -- Chờ 3 giây trước khi tạo đối tượng mới
+    createPart()  -- Tạo đối tượng mới
+end
+
+-- Tối ưu hóa sự kiện Touched
+local part = workspace.Part  -- Giả sử bạn có một đối tượng Part trong workspace
+
+part.Touched:Connect(function(hit)
+    -- Kiểm tra đối tượng bị va chạm là một Player
+    if hit:IsA("Player") then
+        -- Code xử lý chỉ khi va chạm với Player
+        print(hit.Name .. " đã va chạm với part!")
+    end
+end)
+
+-- Tối ưu hóa việc cập nhật GUI (Giả sử có một GUI)
+local player = game.Players.LocalPlayer
+local playerGui = player.PlayerGui
+
+-- Chỉ cập nhật GUI mỗi 1 giây thay vì mỗi frame
+while true do
+    wait(1)  -- Cập nhật mỗi giây
+    -- Cập nhật GUI ở đây (ví dụ: thay đổi giá trị hoặc hiển thị thông tin)
+end
+
+-- Giảm số lần cập nhật trong RenderStepped (chỉ cập nhật khi cần thiết)
+game:GetService("RunService").RenderStepped:Connect(function()
+    -- Kiểm tra điều kiện nào đó và chỉ thực hiện cập nhật khi cần thiết
+    if math.random() < 0.1 then  -- Giả sử bạn chỉ muốn cập nhật 10% thời gian
+        -- Code cập nhật
+    end
+end)
+
+-- Hàm tối ưu hóa game bằng cách dọn dẹp các đối tượng không cần thiết
+local function cleanupObjects()
+    for _, obj in pairs(workspace:GetChildren()) do
+        -- Xóa các đối tượng không cần thiết (ví dụ: các phần tử cũ hoặc không còn sử dụng)
+        if obj:IsA("Part") and obj.Name == "OldPart" then
+            obj:Destroy()
+        end
+    end
+end
+
+-- Thực hiện dọn dẹp mỗi 10 giây
+while true do
+    wait(10)
+    cleanupObjects()
+end
