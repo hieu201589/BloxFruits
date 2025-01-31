@@ -1,0 +1,130 @@
+-- Tối ưu hóa chất lượng đồ họa
+game:GetService("Players").LocalPlayer.PlayerSettings.SavedQualityLevel = Enum.QualityLevel.Level1
+
+-- Tắt các hiệu ứng ánh sáng và bóng không cần thiết
+local lighting = game:GetService("Lighting")
+lighting.GlobalShadows = false
+lighting.Bloom.Enabled = false
+lighting.SunRays.Enabled = false
+lighting.LensFlare.Enabled = false
+lighting.ColorCorrection.Enabled = false
+lighting.ShadowQuality = Enum.ShadowQuality.NoShadows
+
+-- Tắt V-Sync và FPS limiter
+local userSettings = game:GetService("UserSettings"):GetService("GameSettings")
+if userSettings.VSyncEnabled then
+    userSettings.VSyncEnabled = false
+end
+
+-- Tối ưu hóa RemoteEvent/RemoteFunction
+local RemoteEvent = game.ReplicatedStorage:WaitForChild("YourRemoteEvent")
+
+-- Thêm một thời gian delay hợp lý giữa các sự kiện để tránh gửi quá nhiều dữ liệu
+RemoteEvent.OnClientEvent:Connect(function(data)
+    wait(0.1)  -- Chờ 100ms giữa các sự kiện để giảm tải mạng
+    -- Xử lý dữ liệu nhận được tại đây
+end)
+
+-- Giảm đồng bộ hóa không cần thiết
+game:GetService("Players").PlayerAdded:Connect(function(player)
+    -- Cập nhật các cài đặt mạng cho mỗi người chơi
+    local playerCharacter = player.Character or player.CharacterAdded:Wait()
+    local humanoid = playerCharacter:WaitForChild("Humanoid")
+    
+    -- Hạn chế các đối tượng được đồng bộ hóa với Server
+    humanoid.PlatformStand = true  -- Tắt các hiệu ứng không cần thiết
+
+    -- Chỉ đồng bộ hóa các đối tượng quan trọng
+    if player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        hrp.Anchored = false  -- Tránh việc đồng bộ hóa trạng thái quá nhiều
+    end
+end)
+
+-- Kiểm tra và giảm số lượng đối tượng được đồng bộ hóa giữa Client và Server
+game:GetService("RunService").Heartbeat:Connect(function()
+    -- Giảm các đối tượng đang xử lý trên Server, chỉ xử lý những đối tượng quan trọng
+    for _, object in pairs(workspace:GetChildren()) do
+        if object:IsA("Model") or object:IsA("Part") then
+            -- Loại bỏ các đối tượng không cần thiết, không cần thiết phải đồng bộ hóa
+            if (object.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 500 then
+                object:Destroy()  -- Xóa các đối tượng xa người chơi
+            end
+        end
+    end
+end)
+
+-- Giảm tải Ping bằng cách giảm các tác vụ không cần thiết trên Client và Server
+game:GetService("RunService").Heartbeat:Connect(function()
+    -- Giảm tải xử lý đồ họa, giảm bớt các phép toán phức tạp trong mỗi frame
+    -- Tránh vòng lặp chạy quá nhanh
+    wait(0.05)  -- Tăng thời gian chờ giữa mỗi lần cập nhật trạng thái (Giảm tần suất gửi dữ liệu mạng)
+end)
+
+-- Kiểm tra tình trạng tối ưu hóa ping, thông qua số lượng đối tượng
+function checkPingOptimization()
+    local objectCount = #workspace:GetChildren()
+    print("Current object count in workspace: " .. objectCount)
+    
+    if objectCount > 500 then
+        print("Warning: Too many objects in the workspace!")
+    else
+        print("Object count is within optimal range.")
+    end
+end
+
+checkPingOptimization()  -- Kiểm tra tình trạng tối ưu hóa
+
+-- Giảm kích thước của các đối tượng lớn
+for _, part in pairs(workspace:GetDescendants()) do
+    if part:IsA("Part") then
+        part.Size = part.Size / 2  -- Giảm kích thước
+    end
+end
+
+-- Giảm bớt các đối tượng nhân vật (Xóa phụ kiện không cần thiết)
+game:GetService("Players").PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        -- Xóa các phụ kiện không cần thiết
+        for _, accessory in pairs(character:GetChildren()) do
+            if accessory:IsA("Accessory") then
+                accessory:Destroy() -- Xóa phụ kiện không cần thiết
+            end
+        end
+    end)
+end)
+
+-- Hàm giải phóng bộ nhớ
+local function freeMemory()
+    collectgarbage("collect")  -- Yêu cầu hệ thống dọn dẹp bộ nhớ
+end
+
+-- Dọn dẹp các đối tượng không cần thiết (Chỉ xóa các đối tượng không phải là đối tượng quan trọng)
+game:GetService("RunService").Heartbeat:Connect(function()
+    -- Giải phóng bộ nhớ liên tục
+    freeMemory()
+
+    -- Xóa các đối tượng không cần thiết
+    for _, object in pairs(workspace:GetChildren()) do
+        if object:IsA("Model") or object:IsA("Part") then
+            -- Loại bỏ các đối tượng không cần thiết, không cần thiết phải đồng bộ hóa
+            if (object.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 500 then
+                object:Destroy()  -- Xóa các đối tượng xa người chơi
+            end
+        end
+    end
+end)
+
+-- Giải phóng bộ nhớ sau khi xóa các đối tượng không cần thiết
+game:GetService("Players").PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        -- Xóa các phụ kiện không cần thiết
+        for _, accessory in pairs(character:GetChildren()) do
+            if accessory:IsA("Accessory") then
+                accessory:Destroy() -- Xóa phụ kiện không cần thiết
+            end
+        end
+        -- Giải phóng bộ nhớ sau khi xóa phụ kiện
+        freeMemory()
+    end)
+end)
