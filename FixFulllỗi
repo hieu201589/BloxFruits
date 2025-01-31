@@ -48,58 +48,96 @@ local function updateFPS()
     end
 end
 
--- Gọi hàm updateFPS mỗi khung hình
-game:GetService("RunService").Heartbeat:Connect(updateFPS)
+-- Giảm chất lượng đồ họa
+game:GetService("Players").LocalPlayer.PlayerSettings.SavedQualityLevel = Enum.QualityLevel.Level1
 
--- Tối ưu hóa bộ nhớ (Giải phóng các đối tượng không cần thiết)
-local function cleanupUnnecessaryObjects()
-    local partsToCleanup = {}  -- Danh sách các đối tượng cần xóa
+-- Tắt các hiệu ứng ánh sáng và bóng không cần thiết
+game:GetService("Lighting").GlobalShadows = false
+game:GetService("Lighting").Bloom.Enabled = false
+game:GetService("Lighting").SunRays.Enabled = false
+game:GetService("Lighting").LensFlare.Enabled = false
+game:GetService("Lighting").ColorCorrection.Enabled = false
+game:GetService("Lighting").ShadowQuality = Enum.ShadowQuality.NoShadows
 
-    -- Xóa tất cả các "Part" trong Workspace không cần thiết
-    for _, obj in pairs(workspace:GetChildren()) do
-        if obj:IsA("Part") and obj.Name ~= "EssentialPart" then
-            table.insert(partsToCleanup, obj)  -- Thêm vào danh sách xóa
-        end
-    end
+-- Tắt V-Sync và FPS limiter
+if game:GetService("UserSettings"):GetService("GameSettings").VSyncEnabled then
+    game:GetService("UserSettings"):GetService("GameSettings").VSyncEnabled = false
+end
+
+-- Tối ưu hóa RemoteEvent/RemoteFunction
+local RemoteEvent = game.ReplicatedStorage:WaitForChild("YourRemoteEvent")
+
+-- Thêm một thời gian delay hợp lý giữa các sự kiện để tránh gửi quá nhiều dữ liệu
+RemoteEvent.OnClientEvent:Connect(function(data)
+    wait(0.1)  -- Chờ 100ms giữa các sự kiện để giảm tải mạng
+    -- Xử lý dữ liệu nhận được tại đây
+end)
+
+-- Giảm đồng bộ hóa không cần thiết
+game:GetService("Players").PlayerAdded:Connect(function(player)
+    -- Cập nhật các cài đặt mạng cho mỗi người chơi
+    local playerCharacter = player.Character or player.CharacterAdded:Wait()
+    local humanoid = playerCharacter:WaitForChild("Humanoid")
     
-    -- Xóa tất cả các đối tượng trong danh sách
-    for _, part in ipairs(partsToCleanup) do
-        part:Destroy()
-    end
-end
+    -- Hạn chế các đối tượng được đồng bộ hóa với Server
+    humanoid.PlatformStand = true  -- Tắt các hiệu ứng không cần thiết
 
--- Tạo tween thay vì tạo đối tượng mới liên tục
-local function createSmoothMovement()
-    local TweenService = game:GetService("TweenService")
-    local part = workspace.Part
-
-    local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, true)
-    local goal = {Position = Vector3.new(10, 5, 0)}
-
-    local tween = TweenService:Create(part, tweenInfo, goal)
-    tween:Play()
-end
-
--- Hàm giải phóng bộ nhớ
-local function freeMemory()
-    cleanupUnnecessaryObjects()  -- Giải phóng các đối tượng không cần thiết
-    -- Các tác vụ khác như ngừng các sự kiện không cần thiết hoặc dừng các vòng lặp không cần thiết
-    print("Đã giải phóng bộ nhớ!")
-end
-
--- Tối ưu hóa và dọn dẹp bộ nhớ
-local function optimizeMemoryUsage()
-    freeMemory()  -- Gọi hàm giải phóng bộ nhớ
-    createSmoothMovement()  -- Tạo chuyển động mượt mà mà không tạo thêm đối tượng
-end
-
--- Gọi hàm giải phóng bộ nhớ mỗi giây
-game:GetService("RunService").Heartbeat:Connect(function()
-    -- Giải phóng bộ nhớ sau mỗi giây
-    if tick() % 1 < 0.1 then  -- Kiểm tra mỗi giây
-        optimizeMemoryUsage()
+    -- Chỉ đồng bộ hóa các đối tượng quan trọng
+    if player.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = player.Character.HumanoidRootPart
+        hrp.Anchored = false  -- Tránh việc đồng bộ hóa trạng thái quá nhiều
     end
 end)
 
--- Gọi hàm tối ưu hóa ngay từ đầu
-optimizeMemoryUsage()
+-- Kiểm tra và giảm số lượng đối tượng được đồng bộ hóa giữa Client và Server
+game:GetService("RunService").Heartbeat:Connect(function()
+    -- Giảm các đối tượng đang xử lý trên Server, chỉ xử lý những đối tượng quan trọng
+    for _, object in pairs(workspace:GetChildren()) do
+        if object:IsA("Model") or object:IsA("Part") then
+            -- Loại bỏ các đối tượng không cần thiết, không cần thiết phải đồng bộ hóa
+            if (object.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 500 then
+                object:Destroy()  -- Xóa các đối tượng xa người chơi
+            end
+        end
+    end
+end)
+
+-- Giảm tải Ping bằng cách giảm các tác vụ không cần thiết trên Client và Server
+game:GetService("RunService").Heartbeat:Connect(function()
+    -- Giảm tải xử lý đồ họa, giảm bớt các phép toán phức tạp trong mỗi frame
+    -- Tránh vòng lặp chạy quá nhanh
+    wait(0.05)  -- Tăng thời gian chờ giữa mỗi lần cập nhật trạng thái (Giảm tần suất gửi dữ liệu mạng)
+end)
+
+-- Kiểm tra tình trạng tối ưu hóa ping, thông qua số lượng đối tượng
+function checkPingOptimization()
+    local objectCount = #workspace:GetChildren()
+    print("Current object count in workspace: " .. objectCount)
+    
+    if objectCount > 500 then
+        print("Warning: Too many objects in the workspace!")
+    else
+        print("Object count is within optimal range.")
+    end
+end
+
+checkPingOptimization()  -- Kiểm tra tình trạng tối ưu hóa
+
+-- Giảm kích thước của các đối tượng lớn
+for _, part in pairs(workspace:GetDescendants()) do
+    if part:IsA("Part") then
+        part.Size = part.Size / 2  -- Giảm kích thước
+    end
+end
+
+-- Giảm bớt các đối tượng nhân vật (Xóa phụ kiện không cần thiết)
+game:GetService("Players").PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        -- Xóa các phụ kiện không cần thiết
+        for _, accessory in pairs(character:GetChildren()) do
+            if accessory:IsA("Accessory") then
+                accessory:Destroy() -- Xóa phụ kiện không cần thiết
+            end
+        end
+    end)
+end)
